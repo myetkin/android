@@ -1,127 +1,211 @@
-package com.google.andlbs;
+package com.yetkin.googlemaps;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Locale;
+
+import com.google.android.maps.GeoPoint;
+import com.google.android.maps.MapActivity;
+import com.google.android.maps.MapController;
+import com.google.android.maps.MapView;
+import com.google.android.maps.MyLocationOverlay;
+import com.google.android.maps.Overlay;
+import com.google.android.maps.OverlayItem;
+
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.graphics.drawable.Drawable;
+import android.location.Address;
+import android.location.Criteria;
+import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.app.NavUtils;
-import android.support.v4.view.ViewPager;
-import android.view.Gravity;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.TextView;
+import android.view.MotionEvent;
+import android.widget.Toast;
 
-public class MainActivity extends FragmentActivity {
 
-  /**
-	 * The {@link android.support.v4.view.PagerAdapter} that will provide
-	 * fragments for each of the sections. We use a
-	 * {@link android.support.v4.app.FragmentPagerAdapter} derivative, which
-	 * will keep every loaded fragment in memory. If this becomes too memory
-	 * intensive, it may be best to switch to a
-	 * {@link android.support.v4.app.FragmentStatePagerAdapter}.
-	 */
-	SectionsPagerAdapter mSectionsPagerAdapter;
-
-	/**
-	 * The {@link ViewPager} that will host the section contents.
-	 */
-	ViewPager mViewPager;
-
+public class MainActivity extends MapActivity implements LocationListener {
+     MapView map;
+     Long start;	
+     Long stop;
+     MyLocationOverlay  compass;
+     MapController controller;
+     int x,y,i;
+     GeoPoint touchedPoint;
+     Drawable d;
+     List<Overlay>overlayList;
+     int lat;
+     int longi;
+     LocationManager lm;
+     String towers;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
+		setContentView(R.layout.main);
+		   map=(MapView)findViewById(R.id.mvMain);
+	       map.setBuiltInZoomControls(true);	
+	 Touchy t=new Touchy();
+	       overlayList=map.getOverlays();
+	       overlayList.add(t);
+	       compass=new MyLocationOverlay(MainActivity.this,map);
+	       overlayList.add(compass);
+	       controller=map.getController();
+	 GeoPoint point=new GeoPoint(51643234,7848593);
+	 	controller.animateTo(point);
+	 	controller.setZoom(1);
+	 
+	   d=getResources().getDrawable(R.drawable.ic_launcher);
+	}
+	@Override
+	protected void onPause() {
+		// TODO Auto-generated method stub
+		compass.disableCompass();
+		super.onPause();
+		lm.removeUpdates(this);
+	}
+	@Override
+	protected void onResume() {
+		compass.enableCompass();
+		super.onResume();
+		lm.requestLocationUpdates(towers, 500, 1, this);
+	}
+	@Override
+	protected boolean isRouteDisplayed() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 
-		// Create the adapter that will return a fragment for each of the three
-		// primary sections of the app.
-		mSectionsPagerAdapter = new SectionsPagerAdapter(
-				getSupportFragmentManager());
-
-		// Set up the ViewPager with the sections adapter.
-		mViewPager = (ViewPager) findViewById(R.id.pager);
-		mViewPager.setAdapter(mSectionsPagerAdapter);
-
+	class Touchy extends Overlay{
+		public boolean onTouchEvent(MotionEvent e,MapView m)
+		{
+			if(e.getAction()==MotionEvent.ACTION_DOWN)
+			{
+				start=e.getEventTime();
+				x=(int)e.getX();
+				y=(int)e.getY();
+				touchedPoint=map.getProjection().fromPixels(x, y);
+				
+			}
+			if(e.getAction()==MotionEvent.ACTION_UP)
+			{
+				stop=e.getEventTime();
+			}
+			if(stop-start >1500)
+			{
+				AlertDialog alert=new AlertDialog.Builder(MainActivity.this).create();
+				alert.setTitle("Pick an Option");
+				alert.setMessage("Lütfen birini seçiniz!!!");
+				alert.setButton("Place a pinpoint", new DialogInterface.OnClickListener() {
+					
+					@Override
+					public void onClick(DialogInterface arg0, int arg1) {
+						// TODO Auto-generated method stub
+			    
+			     lm=(LocationManager)getSystemService(Context.LOCATION_SERVICE);
+			     
+			     Criteria kriter=new Criteria();
+			     towers=lm.getBestProvider(kriter, false);
+			     Location location=lm.getLastKnownLocation(towers);
+			     if(location !=null)
+			     {
+			    	 lat=(int)location.getLatitude();
+			    	 longi=(int)location.getLongitude();
+			    	 GeoPoint ourLocation=new GeoPoint(lat,longi);
+				     OverlayItem overlayItem=new OverlayItem(touchedPoint,"What's up","2nd String");
+					 CustomPinpoint custom=new CustomPinpoint(d,MainActivity.this);		
+				     custom.insertPinpoint(overlayItem);	
+				     overlayList.add(custom);
+			     }else
+			     {
+			    	 Toast.makeText(MainActivity.this, "Couldn't get provider", Toast.LENGTH_SHORT).show();
+			     }
+			     
+				
+					}
+				});
+                alert.setButton2("Get an Address", new DialogInterface.OnClickListener() {
+					
+					@Override
+					public void onClick(DialogInterface arg0, int arg1) {
+                    Geocoder geocoder=new Geocoder(getBaseContext(),Locale.getDefault());
+					
+					try
+					{
+					List<Address> adress=geocoder.getFromLocation(touchedPoint.getLatitudeE6()/1E6, touchedPoint.getLongitudeE6()/1E6, 1);
+					if(adress.size()>0)
+					{
+					String  display="";
+					for(i=0;i<adress.get(0).getMaxAddressLineIndex();i++)
+					{
+						display+=adress.get(0).getAddressLine(i)+"\n";
+					}
+					Toast t=Toast.makeText(getBaseContext(),display,Toast.LENGTH_LONG);
+					t.show();
+					}
+					}catch(IOException e)
+					{
+						e.printStackTrace();
+					}finally
+					{
+					
+					}
+					}
+				});
+               alert.setButton3("Toggle View", new DialogInterface.OnClickListener() {
+					
+					@Override
+					public void onClick(DialogInterface arg0, int arg1) {
+						// TODO Auto-generated method stub
+						
+						if(map.isSatellite())
+						{
+							map.setSatellite(false);
+							map.setStreetView(true);
+						}else
+						{
+                           map.setSatellite(true);
+                           map.setStreetView(false);
+						}
+					}	
+					
+				});
+               alert.show();
+               
+               return true;
+			}
+			
+		return false;
+		}
 	}
 
 	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.activity_main, menu);
-		return true;
+	public void onLocationChanged(Location l) {
+		// TODO Auto-generated method stub
+		 lat=(int)(l.getLatitude()*1E6);
+    	 longi=(int)(l.getLongitude()*1E6);
+    	 GeoPoint ourLocation=new GeoPoint(lat,longi);
+	     OverlayItem overlayItem=new OverlayItem(touchedPoint,"What's up","2nd String");
+		 CustomPinpoint custom=new CustomPinpoint(d,MainActivity.this);		
+	     custom.insertPinpoint(overlayItem);	
+	     overlayList.add(custom);
+		
 	}
-
-	/**
-	 * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
-	 * one of the sections/tabs/pages.
-	 */
-	public class SectionsPagerAdapter extends FragmentPagerAdapter {
-
-		public SectionsPagerAdapter(FragmentManager fm) {
-			super(fm);
-		}
-
-		@Override
-		public Fragment getItem(int position) {
-			// getItem is called to instantiate the fragment for the given page.
-			// Return a DummySectionFragment (defined as a static inner class
-			// below) with the page number as its lone argument.
-			Fragment fragment = new DummySectionFragment();
-			Bundle args = new Bundle();
-			args.putInt(DummySectionFragment.ARG_SECTION_NUMBER, position + 1);
-			fragment.setArguments(args);
-			return fragment;
-		}
-
-		@Override
-		public int getCount() {
-			// Show 3 total pages.
-			return 3;
-		}
-
-		@Override
-		public CharSequence getPageTitle(int position) {
-			switch (position) {
-			case 0:
-				return getString(R.string.title_section1).toUpperCase();
-			case 1:
-				return getString(R.string.title_section2).toUpperCase();
-			case 2:
-				return getString(R.string.title_section3).toUpperCase();
-			}
-			return null;
-		}
+	@Override
+	public void onProviderDisabled(String provider) {
+		// TODO Auto-generated method stub
+		
 	}
-
-	/**
-	 * A dummy fragment representing a section of the app, but that simply
-	 * displays dummy text.
-	 */
-	public static class DummySectionFragment extends Fragment {
-		/**
-		 * The fragment argument representing the section number for this
-		 * fragment.
-		 */
-		public static final String ARG_SECTION_NUMBER = "section_number";
-
-		public DummySectionFragment() {
-		}
-
-		@Override
-		public View onCreateView(LayoutInflater inflater, ViewGroup container,
-				Bundle savedInstanceState) {
-			// Create a new TextView and set its text to the fragment's section
-			// number argument value.
-			TextView textView = new TextView(getActivity());
-			textView.setGravity(Gravity.CENTER);
-			textView.setText(Integer.toString(getArguments().getInt(
-					ARG_SECTION_NUMBER)));
-			return textView;
-		}
+	@Override
+	public void onProviderEnabled(String provider) {
+		// TODO Auto-generated method stub
+		
 	}
-
+	@Override
+	public void onStatusChanged(String provider, int status, Bundle extras) {
+		// TODO Auto-generated method stub
+		
+	}
 }
