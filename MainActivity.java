@@ -55,7 +55,7 @@ public class MainActivity extends MapActivity implements LocationListener {
 	       controller=map.getController();
 	 GeoPoint point=new GeoPoint(51643234,7848593);
 	 	controller.animateTo(point);
-	 	controller.setZoom(1);
+	 	controller.setZoom(6);
 	 
 	   d=getResources().getDrawable(R.drawable.ic_launcher);
 	}
