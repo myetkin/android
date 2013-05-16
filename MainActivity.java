@@ -96,7 +96,7 @@ public class MainActivity extends MapActivity implements LocationListener {
 			if(stop-start >1500)
 			{
 				AlertDialog alert=new AlertDialog.Builder(MainActivity.this).create();
-				alert.setTitle("Pick an Option");
+				alert.setTitle("Seçenekleri göznden geçirin");
 				alert.setMessage("Lütfen birini seçiniz!!!");
 				alert.setButton("Place a pinpoint", new DialogInterface.OnClickListener() {
 					
